@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: chatbot_postgres
+    environment:
+      POSTGRES_USER: chatbot
+      POSTGRES_PASSWORD: chatbot_secret
+      POSTGRES_DB: chatbot_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - chatbot_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chatbot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:0.6.1
+    container_name: chatbot_chromadb
+    environment:
+      CHROMA_SERVER_AUTH_PROVIDER: None
+    volumes:
+      - chromadb_data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    networks:
+      - chatbot_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatbot_redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - chatbot_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  chromadb_data:
+  redis_data:
+
+networks:
+  chatbot_network:
+    driver: bridge
